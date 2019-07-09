@@ -1,0 +1,139 @@
+---
+title: "ggplot2: elegant graphics for data analysis"
+author: "Kenta Okuyama"
+output: html_document
+---
+
+## ggplot2
+ggplot2とはHadeley Wichamによって開発されたグラフ描画パッケージである。Publicationに対応するグラフの描画が可能である。
+```{r,echo=TRUE,warning=FALSE,message=FALSE}
+library(knitr)
+library(tidyverse)
+knitr::opts_chunk$set(echo=TRUE,warning=FALSE,message=FALSE)
+```
+
+## Chapter 2
+### qplot
+qplotはquick plotの略であり、ggplot2パッケージの中に含まれる。文字通りさっとグラフを描く際に便利だが、非常にクオリティが高い。
+```{r}
+qplot(carat, price, data=diamonds)
+```
+
+結果を見ると対数変換するべきとわかる。
+```{r}
+qplot(log(carat), log(price), data=diamonds)
+```
+
+caratとpriceの間には直線関係があることがわかる。ダイヤにはx=横,y=縦,z=深さの測定値があるため、これとcaratの関係を確かめる。x,y,zをかけた値はダイヤの体積であることから、ダイヤの重さ(carat）と体積（x,y,z)も朝鮮関係であることがわかる。
+```{r}
+qplot(carat,x*y*z, data=diamonds)
+```
+
+### plotとの違い
+ここまでのグラフであればRにbuilt inされているplot関数で同じグラフが描画できる。qplotがplotと違う点は、グラフのgeometry（点、線、面）に対して色や形を指定し装飾できることである。
+```{r}
+qplot(carat, price, data=diamonds, colour=color)
+qplot(carat, price, data=diamonds, shape=cut)
+```
+
+### alphaでover plottingを解消する
+データ数が多いと傾向が把握しづらい場合もある。その場合alphaによって描画するgeometryの等価性を調整できる。
+```{r}
+qplot(carat, price, data = diamonds, alpha = I(1/10))
+qplot(carat, price, data = diamonds, alpha = I(1/100))
+qplot(carat, price, data = diamonds, alpha = I(1/200))
+```
+
+### 散布図の傾向を掴むためのsmooth
+散布図だけでデータの傾向を視覚的に掴めない場合、smooth lineおよびstandard errorを上から描画することができる。
+```{r}
+qplot(carat, price, data = diamonds, geom = c("point", "smooth"))
+```
+
+### smooth lineの設定
+smoothで引かれる線はloessに基づいている(?loessでアルゴリズム参照)。どれだけ点にの散布に準じた線を引くかは0~1で設定ができる。
+```{r}
+qplot(carat, price, data = diamonds, geom = c("point", "smooth"),span = 0.2)
+qplot(carat, price, data = diamonds, geom = c("point", "smooth"),span = 1)
+```
+
+### n=1000以上のデータにはgam (generalized additive model)
+loessはデータが大きくなると対応できないため、その代わりにgamを使う必要がある。
+```{r}
+qplot(carat, price, data = diamonds, geom = c("point", "smooth"), method = "gam", formula=y~s(x))
+qplot(carat, price, data = diamonds, geom = c("point", "smooth"), method = "gam", formula=y~s(x, bs="cs"))
+```
+
+### linearとsplineを当てはめる
+そのほかに、lmを指定することで直線を当てはめることができる。また、splineを当てはめることもできる。
+```{r}
+qplot(carat, price, data = diamonds, geom = c("point", "smooth"),method = "lm")
+library(splines)
+qplot(carat, price, data = diamonds, geom = c("point", "smooth"),method = "lm", formula = y ~ ns(x,5))
+```
+
+
+### jitterとbox-plot
+連続値とカテゴリー値の関係を見る際に使われる。それぞれメリット・デメリットがある。jitterの場合は全てのデータをプロットするため代表的値がわからない。一方box-plotは中央値を含めた四分位値を示してくれるためデータがより読み取りやすくなる。
+```{r}
+qplot(color, price / carat, data = diamonds, geom = "jitter")
+qplot(color, price / carat, data = diamonds, geom = "boxplot")
+```
+
+### histogramとdensityプロット
+一つの連続値変数の分布を確認するときに使う。
+```{r}
+qplot(carat, data = diamonds, geom = "histogram")
+qplot(carat, data = diamonds, geom = "density")
+```
+
+histogramを描く際、最適な棒の太さを描くことが重要である。
+```{r}
+qplot(carat, data = diamonds, geom = "histogram", binwidth = 1,xlim = c(0,3))
+qplot(carat, data = diamonds, geom = "histogram", binwidth = 0.1,xlim = c(0,3))
+qplot(carat, data = diamonds, geom = "histogram", binwidth = 0.01,xlim = c(0,3))
+```
+
+### histogramとdensityプロットをカテゴリー変数別にみる
+ある連続値変数の分布を、性別などグループ別に把握したい場合、colourまたはfillに指定すれば可能である。
+```{r}
+qplot(carat, data = diamonds, geom = "density", color = color)
+qplot(carat, data = diamonds, geom = "histogram", fill = color)
+```
+
+### bar chartで離散値を可視化する
+離散値を数える場合は、geom="bar"と指定する。weight=caratは、
+```{r}
+qplot(color, data = diamonds, geom = "bar")
+qplot(color, data = diamonds, geom = "bar", weight = carat) +
+  scale_y_continuous("carat")
+```
+
+### Time serise - 時系列データを可視化する
+1つ目のグラフは失業者割合を示している。2つ目のグラフは失業期間（週）の中央値を示している。
+```{r}
+qplot(date, unemploy / pop, data = economics, geom = "line")
+qplot(date, uempmed, data = economics, geom = "line")
+```
+
+この2つのグラフ、失業者割合と失業期間をより比較できるように同じグラフに描画する。
+```{r}
+year <- function(x) as.POSIXlt(x)$year + 1900
+qplot(unemploy / pop, uempmed, data = economics,geom = c("point", "path"))
+qplot(unemploy / pop, uempmed, data = economics,
+  geom = "path", colour = year(date)) + scale_area()
+```
+
+### facetingで層別グラフを描画する
+同じグラフに色で分ける他に、違うグリッドにグループごとのグラフを描画するにはfacetsを使う。facetsの後にどの変数で層別に分けるか指定する。その際row~columnの順で横に並べたいか縦に並べたいかにより書き方を変える。
+```{r}
+qplot(carat, data = diamonds, facets = color ~ .,
+  geom = "histogram", binwidth = 0.1, xlim = c(0, 3))
+qplot(carat, data = diamonds, facets = . ~ color,
+  geom = "histogram", binwidth = 0.1, xlim = c(0, 3))```
+```
+
+## Chapter 3 - mastering the grammar
+
+
+

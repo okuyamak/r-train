@@ -1,0 +1,662 @@
+---
+title: "ggplot traning"
+author: "Kenta Okuyama"
+date: "2018年9月13日"
+output: html_document
+---
+#aaa
+# 誰でもできるggplot
+こんにちは。
+Rを使い始めた方でもできる超強力作図パッケージggplotの解説をします。
+UCLAのサイトに準じたものなので、詳しくはこちらのサイトを参照してください(https://stats.idre.ucla.edu/r/seminars/ggplot2_intro/)。
+
+詳しい説明は省き、とにかく手を動かすということに焦点を当てたいと思います。
+早速、以下のライブラリを読み込んでください（パッケージインストールが済んでいない場合はinstall.packages()でインストールしてください。）
+- tidyverse ・・・ggplot, dplyr, tidyr, haven, stringrパッケージがまとまってるやつ
+- Hmisc・・・統計情報をまとめるときにつかう
+- lme4・・・混合モデルをやるやつ
+- nlme・・・今回つかうサンプルデータMilkを呼び出すやつ
+```{r Library, message=FALSE, warning=FALSE, include=FALSE}
+library("tidyverse")
+library("Hmisc")
+library("lme4")
+library("nlme")
+library("tableone")
+```
+
+# ggplotの概要はこんな感じ。複数の要素に分かれていて、＋を使ってキャンバスにグラフを書いていきます。
+1. Data: variables mapped to aesthetic features of the graph
+2. Geoms: objects/shapes on the graph
+3. Stats: statistical transformations taht summarize data (ex. mean, CI)
+4. Scales: mappings of aesthetic values to data values. Legends and axes display these mappings
+5. Coordinate systems: the plane on which data are mapped on the graphic
+6. Faceting: splitting the data into subsets to create multiple variations of the same graph
+
+# では早速
+Milkっていうデータセットを使って作図していきます。
+Milkデータ概要
+ - protein: 牛乳のたんぱく質含有量
+ - time: 搾乳後の経過時間
+ - cow: 牛のID
+ - Diet: 牛の餌（大麦、大麦とルピナス、ルピナス）
+```{r}
+head(Milk)
+ggplot(data=Milk, aes(x=Time, y=protein))
+```
+ggplotでいつもコードは始まります。data=で使うデータを指定します。aesはaestheticsの略でどの変数をｘとｙにそれぞれ描画するか指定します。
+
+# ＋で追加
+```{r}
+ggplot(data=Milk, aes(x=Time, y=protein))+
+  geom_point()
+```
+x軸に時間、y軸にたんぱく質をとって、散布図を描きました。
+コードを見ると、geom_point()が増えてますね。
+これは散布図を描くというコマンドで、ほかにgeom_barなどさまざまな種類のグラフを指定できます。
+
+
+# +でもっと追加
+```{r}
+ggplot(data=Milk, aes(x=Time, y=protein))+
+  geom_point()+
+  geom_boxplot(aes(color=Diet))
+```
+今度はさらにgeom_boxplot()を追加しました。さっきのグラフの上に箱ひげ図が追加されてることがわかりますね。
+aes(color=Diet)で牛の餌の種類によってグループ別に色分けし、作図することを指定しています。
+aesは最初につかったようにxとyの変数の指定や、colorの指定、fillやalphaによって図の色、透過性などが指定できます。
+
+# aesってどこでもつかえるの？
+使えます。
+```{r}
+ggplot(data=Milk, aes(x=Time, y=protein))+
+  geom_point(aes(color=Diet))
+```
+
+今度はaesを散布図を指定したgeom_pointの中に入れてやりました。
+すると色分けが散布図に反映されます。
+
+# ggplotの特徴
+これまでいくつか作図してきましたが、ggplotの特徴は何層にもレイヤーを重ねっていって、オリジナルなグラフを作っていきます。
+つまり、エクセルとかspssとかプリメイドのグラフしかかけないものと比べて非常に柔軟です。
+散布図を描くだけじゃなくて、それに線を引いたり、どんどん追加していけます。
+
+```{r}
+ggplot(data=Milk, aes(x=Time, y=protein))+
+  geom_point()+
+  geom_line(aes(group=Cow))
+```
+今はgeom_line()によって散布図の点を線でつなぎました。
+aes(group=Cow)によって同じ牛の乳の各時点でのたんぱく質含有量の推移がわかります。
+
+# 平均が知りたい
+とはいえ、こんなスパゲッティみたいな図じゃあまり傾向が把握できませんよね（このような経年図をほんとにSpagetti plotという）。
+この牛たちの乳のたんぱく質は時間とともにどう変わってるんだ？
+平均値の推移が見れればいいですよね。
+```{r}
+ggplot(data=Milk, aes(x=Time, y=protein))+
+  geom_point()+
+  geom_line(aes(group=Cow))+
+  geom_smooth()
+```
+
+geom_smooth()によって、宇市全体のたんぱく質含有量の平均値の推移が見れるようになりました。
+
+# グループ別に見たい
+だんだんggplotの本領が発揮されてきました。全体の平均値の推移が見れたのは良かったですね。
+ただ牛はそれぞれ3種類の餌を食べているという貴重な情報がありました。
+食べる餌によって乳のたんぱく質と時間の関係は違うのでしょうか？
+```{r}
+ggplot(data=Milk, aes(x=Time, y=protein))+
+  geom_point()+
+  geom_line(aes(group=Cow))+
+  geom_smooth()+
+  facet_wrap(~Diet)
+
+```
+facet_wrap()というコマンドをさらに追加しました。これによって餌の種類によってグループ別に散布図および平均値の線を書くことができました。
+どのグループも5分経過するまでにガクッとヘリ、あとはあまり変わらない、大麦だけ食べているグループではなぜか時間が10分を経過するに従い再度増加しているようにも見えます。
+
+
+# 他の図たち - さまざまなgeom - 
+これまでは主に散布図(geom_point)を基準に、geom_lineやgeom_smoothで線を引いたりしてきました。
+ここで、頻度を見る基本であるヒストグラムの作り方も学んでおきましょう。
+```{r}
+ggplot(data=Milk, aes(x=protein))+
+  geom_histogram()
+```
+簡単ですね。先ほどとの違いは、ヒストグラムは基本的に一つの変数の頻度を見るためなので、最初のggplot()の行のaes()ではxのみ指定しています。
+後はgeom_histogram()でヒストグラムを書きなさいと指定するだけ。
+
+# ヒストグラムを滑らかに
+ヒストグラムをより滑らかにして見ることもできます。
+```{r}
+ggplot(data=Milk, aes(x=protein))+
+  geom_density()
+```
+# 連続値じゃなかったら？
+ヒストグラムを今見ましたが、ヒストグラムが有用なのは変数が連続値の時です。
+カテゴリー地だった場合はバーグラフが有用でしょう。
+```{r}
+ggplot(data=Milk, aes(x=Diet))+
+  geom_bar()
+```
+今度は新しくgeom_bar()が出てきました。変数にはカテゴリー値である餌の種類を指定しています。
+大体どのグループも同じぐらい和がいることがわかります。
+
+# geom_lineをつかってみる
+さきほどももう使いましたが、散布図の上にラインを引いてごちゃごちゃしていたので、今度はgeom_lineだけを使用して、いろんな形でたんぱく質の時間変化を見てみます。
+```{r}
+ggplot(data=Milk, aes(x=Time, y=protein))+
+  geom_line(aes(group=Cow))
+
+```
+先ほどのグラフの散布図がないバージョンです。
+
+# groupのかわにcolorにしてみる
+aes(group=Cow)で、それぞれのCowの時間に沿ったたんぱく質を線にしました。
+これをcolorに変えたらどうなるでしょうか？
+```{r}
+ggplot(data=Milk, aes(x=Time, y=protein))+
+  geom_line(aes(color=Cow))
+
+```
+
+先ほど一色だった線が牛別に色分けされました。こっちの方がなんかよさそうですね。
+しかしこんなに数が多いと結局傾向を把握するのは難しいです。
+そもそものリサーチクエスチョンが牛によってたんぱく質の経時的変化が違う、なんてことにはなりませんよね。
+牛の”ある特徴”によってたんぱく質の経時的変化が違う、というのがよくありそうです。
+はい、思い出してみると、餌の種類という面白そうなデータがありましたね。
+
+```{r}
+ggplot(data=Milk, aes(x=Time, y=protein))+
+  geom_line(aes(group=Cow,color=Diet))
+
+```
+
+今度っはgroupはCowのまま、つまり同じ牛の経時的たんぱく質に線を引き、餌の種類で色分けをしました(color=Diet)。
+これでもまだごちゃごちゃしてますが、こっちの方がなにか傾向がつかめそうですね。
+このごちゃごちゃを回避するためには、最初にやったようにfacet_wrap()をつかってグラフを三つに分けてみたりすると良いです。
+
+```{r}
+ggplot(data=Milk, aes(x=Time, y=protein))+
+  geom_line(aes(group=Cow,color=Diet))+
+  facet_wrap(~Diet)
+
+```
+
+余談ですが、色分けの他に、線の種類を変えることもできます。
+```{r}
+ggplot(data=Milk, aes(x=Time, y=protein))+
+  geom_line(aes(group=Cow,linetype=Diet))
+
+```
+colorのところがlineに変わっただけです。白黒でもグループの違いがわかるので、必要な時に便利です。
+これでは線のタイプを変えましたが、点のタイプも変えることができます。
+```{r}
+ggplot(data=Milk, aes(x=Time, y=protein))+
+  geom_point(aes(shape=Diet))
+
+```
+あえてaesの行を二回入れましたが、１行にまとめて書くことも可能です。
+```{r}
+ggplot(data=Milk, aes(x=Time, y=protein,shape=Diet))+
+  geom_point()
+
+```
+これまた余談ですが、shapeはマニュアルで変更することも可能です。
+scale_shape_manual()という行を追加し、それぞれのshapeを指定します。 
+shapeのリストはUCLAのサイト資料最下部にあります（https://stats.idre.ucla.edu/stat/data/intro_ggplot2/ggplot2_intro_slidy.html#(34)）
+```{r}
+ggplot(Milk, aes(x=Time, y=protein, shape=Diet)) +
+  geom_point() +
+  scale_shape_manual(values=c(5, 3, 8))
+```
+
+既存のシンボルでは満足いかない場合は、こんな風に自在にシンボルを作ることもできます。
+```{r}
+ggplot(Milk, aes(x=Time, y=protein, shape=Diet)) +
+  geom_point() +
+  scale_shape_manual(values=c("B", "M", "L"))
+```
+
+続いてヒストグラムの場合の色やデザインの指定です。
+scale_fill_hue()
+scale_fill_brewer()
+の二つがあります。それぞれ見ていきましょう。
+まず、aes(x=protein,fill=Diet)でタンパク質を餌の種類ごとに表示することを指定しています。
+geom_density()でヒストグラムのなめらかなやつ。alpha=1/3で全ての色の透過性をオン。
+scale_fill_hue()は色分けを意味します。fill=Dietと連動しています。
+```{r}
+ggplot(Milk, aes(x=protein, fill=Diet)) + 
+  geom_density(alpha=1/3)+ 
+  scale_fill_hue()
+```
+
+
+
+# Statsでより統計的に
+これまではデータの可視化を一通りやりました。
+次はより統計的処理を施したものの可視化をしていきます。
+
+```{r}
+ggplot(data=Milk, aes(x=Time, y=protein))+
+  stat_summary()
+```
+
+最初の行でx,yだけ指定して、stat_summary()とだけ指定しました。
+ここで得られたのは、各時点の平均値（点）とその標準誤差（エラーバー）です。
+何も指定しないstat_summary()ではデフォルトで平均値と標準誤差が表示されます。
+ではいくつか指定を変えてみましょう。
+
+
+```{r}
+ggplot(data=Milk, aes(x=Time, y=protein))+
+  stat_summary(fun.y="median",geom="point")
+```
+fun.y="median"で中央値の表示を指定しました。
+このように統計量を指定する場合、geom="point"でどんな図を表示するかも指定する必要があります。
+では次に平均値と95％CIを表示してみます。
+
+```{r}
+ggplot(data=Milk, aes(x=Time, y=protein))+
+  stat_summary(fun.data="mean_cl_normal")
+ggplot(data=Milk, aes(x=Time, y=protein))+
+  stat_summary(fun.data="mean_cl_boot")
+```
+
+あえて2種類の図を作りました。
+mean_cl_normalはガウス分布（t分布基準）に基づく95%CI
+mean_cl_bootはブートストラップ法に基づく95%CI
+ここではgeom="point"の指定は不要になります。
+
+
+# 軸の範囲を決める
+これまでのグラフはの軸の数値範囲は勝手に決められていました。
+範囲を指定したい時がデータの可視化をしていると必ず訪れます。
+また軸のタイトルも変数名でなくわかりやすいものにしたいでしょう。
+lims()
+labs()
+を使ってそれぞれ範囲の指定、軸タイトルを決めることができます。
+```{r}
+ggplot(Milk, aes(x=Time, y=protein)) +
+  geom_point() +
+  lims(x=c(5,10), y=c(3,4)) +
+  labs(x="Weeks", y="Protein Content")
+```
+
+# legendを設定する
+基本的にggplotは自動でレジェンドをグラフ横に出してくれます。
+ただし、グラフのみでグループがわかる場合があり、レジェンドが場所をとるだけの邪魔者になる時もしばしばあります。
+そんな時は
+guides()
+を使ってレジェンドを設定することができます。
+guides(shape="none")によってレジェンドを消しています。
+```{r}
+ggplot(Milk, aes(x=Time, y=protein, shape=Diet)) +
+  geom_point() +
+  guides(shape="none")
+```
+
+# facet機能を駆使する
+最初の方でもやりましたが、グラフがぐちゃぐちゃしていると、グループ別にすることで傾向の把握が容易になります。
+facet_wrap()
+facet_grid()
+この二つを使って、グループ数に応じたウィンドウを作成することができます。
+```{r}
+ggplot(Milk, aes(x=protein, color=Diet)) + 
+  geom_density() + 
+  facet_wrap(~Time)
+```
+
+ここではfacet_wrap()によって、時間別にタンパク質の密度ヒストグラムを作成しています。
+次にfacet_grid()を使ってみます。
+```{r}
+ggplot(Milk, aes(x=protein, color=Diet)) + 
+  geom_density() + 
+  facet_grid(~Time)
+```
+どうですか？
+違いがわかりますでしょうか。facet_gridはこのようなグラフには適していません。
+```{r}
+ggplot(Milk, aes(x=Time, y=protein)) + 
+  geom_point() + 
+  facet_grid(Diet~.)
+```
+このようにグループが３つ、みたいデータが経年的変化（横長）のグラフに適しています。
+
+# elementをいじってグラフをおしゃれに - theme
+最後に、ggplotのグラフの細かい部分もいじれるところをお見せします。
+ここでは、theme(panel.background=element_rect(fill="lightblue"))
+を追加して、今までグレーのデフォルトカラーだった背景色を変えています。
+```{r}
+ggplot(Milk, aes(x=Time, y=protein)) + 
+  geom_point()+ 
+  theme(panel.background=element_rect(fill="lightblue"))
+```
+
+次に、軸タイトルのフォントをいじります。
+theme(axis.title.x=element_text(size=20, color="red"))
+によってx軸タイトルのサイズを20、色を赤に指定しています。
+```{r}
+ggplot(Milk, aes(x=Time, y=protein)) + 
+  geom_point()+ 
+  theme(panel.background=element_rect(fill="lightblue"))+
+  theme(axis.title.x=element_text(size=20, color="red"))
+```
+
+やっぱり背景はなしでしょ。
+そんな時はこのように書きます。
+theme(panel.background=element_bland())で背景色を消しています。
+theme(panel.background=element_rect(fill="lightblue"))との違いはelement_以降ですね。
+ついでにx軸タイトルも入らなかったので、
+theme(axis.title.x=element_blank())で消しています。
+theme(axis.title.x=element_text(size=20, color="red"))との違いはこれまたelement以降ですね。
+以上の例からまとめると、elementをいじりたい時はtheme()で初めてelement_なんちゃらで指定するということです。
+```{r}
+ggplot(Milk, aes(x=Time, y=protein)) + 
+  geom_point()+ 
+  theme(panel.background=element_blank(),
+           axis.title.x=element_blank())
+```
+
+
+これが最後でした。作ったグラフは画像として保存することができます。
+ggsave("名前",plot=グラフオブジェクト,width=横幅,height=高さ,units="インチなのかセンチなのか")
+名前のところに保存先のパスを指定してやることもできます。
+しなければプロジェクト内に保存されます。
+```{r}
+myplot <- ggplot(Milk, aes(x=Time, y=protein)) + 
+  geom_point()+ 
+  theme(panel.background=element_blank(),
+           axis.title.x=element_blank())
+ggsave("myplot.png", plot=myplot, width=7, height=5, units="in")
+```
+
+
+# データ分析、モデル構築をしていく
+これまで、ggplotの基本的な使い方、データの可視化のさまざな方法を学びました。
+実際にggplotを使うのはおそらく、
+1. レポートや報告書でデータの分布を示す時
+2. 論文のためのデータ分析をする際の統計モデル構築
+の大きく二つが挙げられるでしょう。
+この回では特に2のデータ分析のための統計モデル構築に必要なデータの把握、モデル診断等を行っていきたいと思います。
+
+サンプルデータ概要
+ - ネズミの歯の成長に関する実験データ：ビタミンCをascorbic acid、orange juiceの2種類で投与し違いを見る
+ - 目的は歯の成長をビタミンCの投与量が説明するか、そしてそれがビタミンCの種類で違うか
+ - データ数60
+len: numeric, tooth length
+supp: factor, supplement type, 2 levels, “VC” is ascorbic acid, and “OJ” is orange juice
+dose: numeric, dose (mg/day)
+
+```{r}
+str(ToothGrowth)
+```
+まず、離散値の分布を見てみます。連続値であればヒストグラム、離散値の場合はバーグラフで見るのが一般的です。
+```{r}
+ggplot(data=ToothGrowth,aes(x = supp))+
+  geom_bar()
+ggplot(data=ToothGrowth,aes(x = dose))+
+  geom_bar()
+```
+離散値が二つある場合、このように別々ん見るよりも、二つを重ねて見てしまう方が効果的です。
+例えば以下のコードでは、doseの分布がsuppごとにどうなっているかを表します。
+```{r}
+ggplot(data = ToothGrowth,aes(x = dose,fill = supp))+
+  geom_bar()
+```
+
+fill = suppでsuppごとに色分けするように指定しています。
+このグラフから、doseの分布はsupp別に見て全く同じということがわかります。
+
+では次に、outcomeのlen（歯の長さ）の分布を見ます。
+統計モデルの仮定でoutcomeの分布は非常に大事なものになります。
+density plotでlenの分布を見ます。
+```{r}
+ggplot(data = ToothGrowth, aes(x = len))+
+  geom_density()
+```
+
+さらにこれをsupp別に見ます。
+fillよりもcolorを使った方が見やすいです。
+```{r}
+ggplot(data = ToothGrowth, aes(x = len, fill = supp))+
+  geom_density()
+ggplot(data = ToothGrowth, aes(x = len, color = supp))+
+  geom_density()
+```
+
+では、次にこの分析の目的に戻ります。
+- 歯の成長をビタミンCの投与量が説明しているか、そしてそれがビタミンCの種類によって違うかということでした。
+アウトカムとxの散布図を見るのが有用です。
+```{r}
+ggplot(data = ToothGrowth, aes(x = dose, y = len))+
+  geom_point()
+```
+
+この散布図を見て何かがわかりますでしょうか？
+説明変数xが離散値なので、散布図を書いてもなかなか傾向が把握できません。
+そんな時はstat_summary()を用いて、それぞれのxの値の時のyの平均値、標準誤差を示してみます。
+```{r}
+ggplot(data=ToothGrowth, aes(x=dose, y=len))+
+  stat_summary()
+```
+さらに、平均値を線でつないでみます。
+```{r}
+ggplot(data=ToothGrowth, aes(x=dose, y=len))+
+  stat_summary()+
+  stat_summary(geom="line")
+```
+
+この方がわかりやすいですね。
+xとyの関係は直線とは少し違うことがわかります。
+
+では、この関係はsupp（ビタミンCの種類）によって異なるのでしょうか？
+aes(color=supp)を追加してみます。
+```{r}
+ggplot(data = ToothGrowth, aes(x = dose, y = len))+
+  stat_summary()+
+  stat_summary(geom="line")+
+  aes(color=supp)
+```
+
+このグラフから、
+1. ビタミンC投与量と歯の長さの関係は直線ではない（傾きが変わる）。
+2. ビタミンC投与量が少量の時、歯の長さがオレンジジュースの方が、サプリよりも長い。投与量が多くなると最終的にその差はなくなる。
+ということがわかります。
+
+# 線形回帰の実行とその診断
+これまでxとyの関係（直線関係にあるか）、それはzによって異なるか（効果修飾）を見てきました。
+では、これらのグラフを実施する前に、xとyは直線関係にあると仮定し、一般線形モデルを当てはめるとします。
+一般線形モデルには幾つかの仮定がありますので、それらを満たしているかの診断をこれから行っていきます。
+```{r}
+re <- lm(len~dose*supp, data = ToothGrowth)
+summary(re)
+```
+まずは、一般線形モデルの結果を見てみましょう。
+これを見てみると、doseが増えるとlenが増加するという関連、そしてそれはsuppによって修飾されるということがわかります（交互作用が有意）。
+では果たして、この一般線形モデルは適切なモデルなのでしょうか？
+これを診断するため、ggplotで分析していきます。
+診断する一般線形回帰の仮定項目は：
+1. homoscedasticity（等分散性）：誤差が均一に分散されているか
+2. linear relationship（直線関係）：xとyが直線関係にあるか
+```{r}
+ToothGrowth$fit <- predict(re)
+ToothGrowth$res <- residuals(re)
+ggplot(ToothGrowth, aes(x=fit, y=res, color=supp)) + 
+  geom_point() +
+  geom_smooth() 
+```
+
+このコードでは、
+1. predict(re)で、xの値におけるyの予測値を直線回帰の結果から抽出しています。
+2. residual(re)で直線回帰の予測値からyの実測値の誤差を抽出しています。
+これをそれぞれ、xには予測値、yには予測値における誤差をおいて描画しています。
+そしてそれをsuppごとに予測線を引いています。
+もし引かれた直線がフラットであれば、xとyが直線関係にあることを表します（このグラフからはそうでないことがわかる）。
+誤差お等分散性は、許容範囲といったところ（各予測値の時点0を中心に均等に分散している）。
+
+
+次に、誤差の分散の等質性の他に、誤差が正規分布であることが一般線形回帰の仮定で重要です。
+それを診断するにはqqplotを見ます。 qqplotの仕組みは複雑なのでここでの詳しい説明は省きます。
+こちらのページに非常にわかりやすくqqplotの説明が書かれているので、参照してください（https://qiita.com/kenmatsu4/items/59605dc745707e8701e0）
+では、誤差のqqplotを書くにはまず、誤差をz_scoreに直す必要があります。
+```{r}
+ToothGrowth$res_stand <- rstandard(re)
+ggplot(ToothGrowth, aes(sample=res_stand)) + 
+  stat_qq() + 
+  geom_abline()
+```
+１行目で線形モデルの結果で算出した誤差のz_score（正規化した値）をデータに追加します。
+次に、ggplotでsample=res_standをaes内で指定して、stat_qq()で描画、geom_ablineで直線を引きます。
+x軸には理論分布として仮定する正規分布、y軸には誤差の分布を示しています。
+引かれた直線に点が沿っていれば、誤差の正規分布が満たされているということになります。
+
+以上でモデルの診断（一部ですが）は終わりです。
+最終解析結果をグラフにすることもできますが、ここでは省略して次の例題に進みます。
+
+
+# 混合モデル
+ここからは時系列データの可視化及び解析を行っていきます。
+解析に使用するデータはこちら
+睡眠と反応時間に関する時系列データ
+18人の対象者を10時点観測した繰り返しデータ
+Reaction: 飯能時間
+Days: 睡眠の日数
+Subject: 対象者番号
+```{r}
+str(sleepstudy)
+```
+普通、このような繰り返しのデータの場合、それぞれのデータが独立と考え一般線形回帰を実行することには問題があります。
+一般線形回帰のAssumptionの一つである、IndependenceをViolateしているためです。
+実際にどのような問題が起こるのか、時系列データであることを無視して解析を進めてみます。
+
+```{r}
+ggplot(data=sleepstudy, aes(x = Days, y = Reaction))+
+  geom_point()+
+  geom_smooth()
+```
+
+どうでしょう？睡眠が取れてない日数が多いと反応時間も長くなってしまうという、わかりやすい結果になっています。
+では、一般線形回帰を実行してみます。
+```{r}
+re <- lm(Reaction~Days, data=sleepstudy)
+summary(re)
+```
+
+この結果から、睡眠剥奪日数が1日増加すると、反応時間が10秒長くなるという直線関係になっていることがわかります。
+
+では、この回帰モデルが適切かどうか診断していきます。
+resには誤差
+fitには予測値
+誤差と予測値の関係をプロットします。
+線形回帰の仮定の一つlinearity（直線関係）は問題なさそうです。
+しかしHomoscadascesity（分散の等質性）には問題がありそうです。
+予測値に対する誤差の分布が一様になっていないことがわかります。
+```{r}
+sleepstudy$res <- residuals(re)
+sleepstudy$fit <- predict(re)
+
+ggplot(sleepstudy, aes(x=fit, y=res)) +
+  geom_point() +
+  geom_smooth()
+```
+
+
+# サンプルの独立性は？
+Linearity（直線関係）とHomoscadascisity（分散の等質性）の他に、Independence（サンプルの独立性）が一般線形回帰の重要なAssumptionとしてあります。
+このデータは時系列データ（18人の対象者のデータ10回分）なので、確実にこのAssumptionはViolateしています。
+それは対象者ごとの残差をプロットすると見えてきます。
+```{r}
+ggplot(sleepstudy, aes(x=Subject, y=res)) +
+  geom_point() +
+   stat_summary(color="red", size=1)
+```
+
+このグラフから、残差の平均値のばらつきが対象者ごとに異なっており、それはサンプルの独立性がViolateされていることを示します。
+どういうことか？
+サンプル=反応時間の実測データ（グラフの黒丸）が対象者ごとにクラスタリングしていることがわかります。つまり、対象者によって誤差の値が異なり、サンプルの独立性がViolateされている、ということです。
+一般線形回帰では、この実測データが各対象者ごとのものであるということを無視しています。つまり、データ全体（18×100）に対して最小二乗法に基づき回帰線を引き、パラメータを算出しています。データが地域ごと異なる（地域階層データ）、という場合もこのようにデータの独立性がViolateされているため、それらをしっかりと加味した混合モデルが必要になります。
+
+# 対象者ごとにグラフを
+これまでの診断で、対象者ごとにReaction time（反応時間）のベースライン値（Intercept）が異なるということがわかりました。さらに、この睡眠時間剥奪日数と反応時間の関係は（Slope）対象者ごとに異なると予想できます。
+以下では、対象者ごとに色分けしてグラフを書いています。x軸は睡眠剥奪日数、y軸は反応時間です。
+```{r}
+ggplot(sleepstudy, aes(x=Days, y=Reaction, color=Subject)) + 
+  geom_point() + 
+  geom_smooth(se=F)
+```
+
+上のグラフからも対象者ごとに、睡眠剥奪日数が反応時間に与える効果が違うことがわかります。これをさらに対象者別のウィンドウにして見てみます。
+span=1.5というコマンドを追加していますが、これは回帰線をより滑らかにしています。したがって数をあげるとより滑らかな回帰線が引かれます。
+```{r}
+ggplot(sleepstudy, aes(x=Days, y=Reaction)) + 
+  geom_point() + 
+  geom_smooth(span=1.5) +
+  facet_wrap(~Subject)
+```
+
+# 線形混合モデルLMMを実行する
+これまでのグラフから、睡眠剥奪日数（Days）と反応時間（Reaction）には線形の関係があり、対象者レベルで反応時間、反応時間に対する睡眠剥奪日数の効果が違うことがわかりました。
+これらをそれぞれ、random interceptとrandom slopeとして混合モデルにより追加し、解析を実行します。
+```{r}
+mixed <- lmer(Reaction ~ Days + (1+Days|Subject), 
+              data=sleepstudy)
+summary(mixed)
+```
+
+ではここで、対象者ごとの誤差の平均値をプロットしてみます。
+先ほどの一般線形回帰のグラフとは比べられないほど、対象者ごとの誤差の平均値が0近くの一定値に見られます。
+```{r}
+sleepstudy$res_mix <- residuals(mixed)
+
+#residuals by subject, mixed model
+ggplot(sleepstudy, aes(x=Subject, y=res_mix)) +
+  geom_point() +
+  stat_summary(color="red", size=1)
+```
+
+
+ではさらに、このグラフに一般線形モデルで作成したグラフを追加してみます。
+いかに混合モデルによって、加味されているかがわかります。
+```{r}
+#residuals by subject, both models
+ggplot(sleepstudy, aes(x=Subject, y=res_mix)) +
+  geom_point() +
+  stat_summary(color="red", size=1) +
+  stat_summary(aes(y=res), color="blue", size=1)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

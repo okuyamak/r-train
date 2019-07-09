@@ -1,0 +1,480 @@
+---
+title: "R for Data Science"
+author: "Kenta Okuyama"
+output: html_document
+---
+
+```{r,echo=TRUE,warning=FALSE,message=FALSE}
+library(knitr)
+library(tidyverse)
+knitr::opts_chunk$set(echo=TRUE,warning=FALSE,message=FALSE)
+```
+# tidyverse
+From this book R for Data Science, you will be able to learn how to clean, manage, and visualize data which are all necessary for data science. Along with these basic skills, you will be able to learn how to reproduce research, literate programming and save time, which will be a great asset for you asa researcher. 
+
+## Introduction
+Everything begin with importing and tidying a data. Tidying data means create data with colums and rows which could be analyzed. Next step will be transforming. Transforming data is basically to subset observations, create new variables, and summarize (ex. means, sum). Data tidying and transforming are called together as data wrangling. 
+
+## Data visualization
+### ggplot
+Here introduce simple ggplot method to efficiently plot data. There is often a situation when you want to plot multiple gemetory within one canvas. You can shorten your code like code 2 instead of literating the same argument like code 1. In addition, you can specify argument for each geometry like code 3 and 4. You can see that it is even possible to show only a part of data by filtering in code 4.
+
+```{r}
+# 1
+ggplot(mpg) +
+	geom_point(aes(x=displ,y=hwy))+
+	geom_smooth(aes(x=displ,y=hwy))
+# 2.
+ggplot(mpg, aes(x=displ,y=hwy)) +
+	geom_point()+
+	geom_smooth()
+# 3.
+ggplot(mpg, aes(x=displ,y=hwy)) +
+	geom_point(aes(color=class))+
+	geom_smooth()
+# 4.
+ggplot(mpg, aes(x=displ,y=hwy)) +
+	geom_point(aes(color=class))+
+	geom_smooth(data = filter(mpg, class == "subcompact"), se = FALSE)
+
+```
+
+## Data transformation
+### dplyr
+Once you have data imported, you want to visualize to grasp basic characteristics as well as certain associations of your interest. Data visualization will be easily and effectively done by gglot. However, you need to transform your data to visualize, i.e. create new variables, change type of variables, summarize by group, etc. Here dplyr is a powerful package to transform data in your desired format. 
+
+### dplyr::filter
+One of the most basic function in dplyr is filter(). It will basically subset dataset for your interest. A confusing part which a first-time user face is how to write conditional statement, i.e. "and", "or", "not". You have to be careful for writing this statement not as same as english language grammar. The code below is filtering data of flights departed in either November or December. Although you might be tempted to write as: nov_dev <- filter(flights, month == 11 | 12, it won't work. You need to write either: month ==11| month==12, or month %in% c(11,12), like code below.
+```{r}
+library(nycflights13)
+nov_dec <- filter(flights, month %in% c(11, 12))
+```
+What you should remember when you use filter is handling of missing value. Filter by default exculdes NA and FALSE value based on the conditional statement you write. Therefore, if you want to keep NA (=missing), you should explicitly write it out.
+```{r}
+filter(flights, is.na(month) | month %in% c(11,12))
+```
+
+### dplyr::select
+Select is used to keep certain columns of your interest. You can also move a certain columns to the start of the dataframe. 
+
+```{r}
+select(flights, year, month, day)
+select(flights, year:day)
+select(flights, -(year:day))
+```
+You can efficiently select colums by some functions within select().
+
+* starts_with("abc"): matches names that begin with “abc”.  
+* ends_with("xyz"): matches names that end with “xyz”.  
+
+* contains("ijk"): matches names that contain “ijk”.
+
+* matches("(.)\\1"): selects variables that match a regular expression.  
+
+* num_range("x", 1:3): matches x1, x2 and x3.  
+
+When you want to rename variable, you can use rename(). When you want to change the order of the columns (variables), you can use everything() within select(). The code below move two columns "time_hour" and "air_time" to the start of the data.
+```{r}
+rename(flights, tail_num = tailnum)
+select(flights, time_hour, air_time, everything())
+```
+
+### dplyr::mutate
+Besides selecting columns, there is mutate function which add new columns (variables) at the end of data (code 1). In the same code block, you can immediately refer the column just created (code 2). If you only keep new variables created, you can use transmute instead of mutate like code 3.
+
+```{r}
+# 1
+flights_sml <- select(flights, 
+  year:day, 
+  ends_with("delay"), 
+  distance, 
+  air_time
+)
+names(flights_sml)
+
+mutate(flights_sml,
+  gain = dep_delay - arr_delay,
+  speed = distance / air_time * 60
+)
+
+# 2 
+mutate(flights_sml,
+  gain = dep_delay - arr_delay,
+  hours = air_time / 60,
+  gain_per_hour = gain / hours
+)
+
+# 3
+transmute(flights,
+  gain = dep_delay - arr_delay,
+  hours = air_time / 60,
+  gain_per_hour = gain / hours
+)
+```
+
+### dplyr::summarise
+Summarise function is very useful to summarise data for desired output. Summarise itself will not beuseful unless group_by argment is stated together. Code 1 below is simply summarise the mean of depature delay time while code 2 summarise the mean of depature delay time by date, which is probably more informatic. 
+```{r}
+# 1
+summarise(flights, delay = mean(dep_delay, na.rm = TRUE))
+
+# 2
+by_day <- group_by(flights, year, month, day)
+summarise(by_day, delay = mean(dep_delay, na.rm = TRUE))
+
+```
+The code 1 transforms data and visualize by ggplot. First block of code include summarise function basically try to create date of mean distance and mean dely time by destinations. It also subset data only with less noisy ones, i.e. excluding the data with small number of flights and whose destination is Honolulu. Then visualizing the created (aggregated) data by ggplot. There is no problem in code 1 except the necessity of keeping up with intermidiate data till the final data created. Pipe locator is one of the most powerful tool discovered in dplyr which make the code more efficient and clean. All the code blocks in 1 can be re-written like code 2. What you should be careful is that delay in code 2 will be the output of ggplot instead of transformed data. If you want to keep data for further analysis, it is not wise to piping with transforming code block and ggplot code block. If transforming data is only for temporary i.e. only for one-time visualization, it is more efficient to piping transforming part (dplyr) and visualization part (ggplot). There is a possibility to transform data in ggplot code block, it is always better to use dplyr and pipe it to ggplot. 
+
+```{r}
+# 1
+by_dest <- group_by(flights, dest)
+head(by_dest)
+delay <- summarise(by_dest,
+  count = n(),
+  dist = mean(distance, na.rm = TRUE),
+  delay = mean(arr_delay, na.rm = TRUE)
+)
+delay <- filter(delay, count > 20, dest != "HNL")
+# It looks like delays increase with distance up to ~750 miles and then decrease. Maybe as flights get longer there's more ability to make up delays in the air?
+ggplot(data = delay, mapping = aes(x = dist, y = delay)) +
+  geom_point(aes(size = count), alpha = 1/3) +
+  geom_smooth(se = FALSE)
+
+# 2
+delay <- flights %>%
+       	group_by(dest) %>%
+	summarise(
+		  count = n(),
+		  dist = mean(distance, na.rm = TRUE),
+		  delay = mean(arr_delay, na.rm = TRUE)) %>%
+	filter(count > 20, dest != "HNL") %>%
+	ggplot(mapping = aes(x = dist, y = delay)) +
+	geom_point(aes(size = count), alpha = 1/3) +
+        geom_smooth(se = FALSE)
+
+```
+
+By using conditonal sentence within summarise argument, it will enable to count the number of observation by group which meet the conditions. This will be done by sum() to simply count the number of observations which meet the condition, and mean() can produce the propotion against the total observation within the group that meet the condition.
+
+```{r}
+# 1
+flights %>%
+	#filter(!is.na(dep_time)) %>%
+        group_by(year, month, day) %>% 
+        summarise(n_early = sum(dep_time < 500, na.rm=TRUE))
+# 2
+flights %>%
+	filter(!is.na(dep_time)) %>%
+        group_by(year, month, day) %>% 
+        summarise(n_early = mean(dep_time < 500))
+
+
+### this is for kosha visualization data
+# chronic_prop  <- kosha_vis %>%
+#	group_by(year, Kyuson, gender, age_cat) %>%
+#	summarise(hbp_prop = mean(hbp_ob==1, na.rm = TRUE)) %>%
+#	summarise(diab_prop1 = mean(diab_ob1==1, na.rm = TRUE)) %>%
+#	summarise(diab_prop2 = mean(diab_ob2==1, na.rm = TRUE)) %>%
+#	summarise(dyslip_prop = mean(dyslip_ob==1, na.rm = TRUE)) %>%
+#	summarise(obese_prop = mean(obesity==1, na.rm = TRUE))
+
+
+```
+
+## Exploratory data analysis
+EDA in short is the starting point of data analysis, which include data transformation and visualization. First step of EDA is to visualize data based on the type of variables within the data. When variable is categorical, first thing you want to do is to visualize the frequency by categories. This will be done by bar chart like code 1. When variable is continuous, you want to visualize the distribution and it is done by histogram like code 2. 
+
+```{r}
+# 1
+ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x = cut))
+
+# 2
+ggplot(data = diamonds) +
+  geom_histogram(mapping = aes(x = carat), binwidth=0.5)
+```
+Next step is to explore the distribution of varialbes deeper. It is often interesting to see the distribution by groups like code below. Code 1 and 2 are both visualizing the distribution of carat of diamonds by group:cut, but in different way, i.e. bar vs line. As you notice, it would be much easier to see with line when distribution plot is overlapped each other.
+
+```{r}
+# 1
+ggplot(data = diamonds, mapping = aes(x = carat, color = cut)) +
+  geom_histogram(binwidth=0.5)
+# 2
+ggplot(data = diamonds, mapping = aes(x = carat, color = cut)) +
+  geom_freqpoly()
+
+```
+Why is it important to visualize distribution of single variable? Although most peole neglect the importance of simple histrogram, there is often a situation that you can find interensting feature, ex. clustering. From code 1 and 2 below, you can notice there is a clustering, i.e. there there are multiple points which have high frequency. This often lead you to develop questions, what other variable in the data might explain this clustering (=tendency)?
+
+```{r}
+# 1
+ggplot(data = diamonds, mapping = aes(x = carat)) +
+  geom_histogram(binwidth=0.01)
+
+# 2
+ggplot(data = faithful, mapping = aes(x = eruptions)) + 
+  geom_histogram(binwidth = 0.25)
+```
+
+Next important step is to investigate outliers. In most cases, data contains outliers due to data entry error or measurament error. If you try to visualize outliers of continuous variables by histogram, you may not be able to see it when data is too large and variable's value can be very large. In that case you can add an argument "coord_cartesian" to limit y axis.
+
+```{r}
+ggplot(diamonds) + 
+  geom_histogram(mapping = aes(x = y), binwidth = 0.5) +
+  coord_cartesian(ylim = c(0, 50))
+```
+You always need to make a decision whether you include outliers in the analysis. If outliers do not have significant effect on your results, you can handle them as missing and move on. However, if it has significant effect on your results, you should not drop them without justification. You need to figure out what caused them, i.e. data entry, measurament errors, and explain why and how you remove outliers. 
+
+Besides outliers, there are often missing values. These are usually not visualized in ggplot by default. However, warning/messages might appear. You can hide such messeges by adding "na.rm=TRUE" within ggplot code block.
+```{r}
+#ggplot(data = diamonds2, mapping = aes(x = x, y = y)) + 
+#  geom_point(na.rm = TRUE)
+```
+
+
+
+## Tibble
+Tibbles are data frames, but they tweak some older behaviors to make life little easier. 
+
+## Data import
+Importing data is initial step for all analysis. Data to import is ideally in clean format, i.e. with column names in the first rows and values within each column. However, there are often cases that first few rows are filled with metadata or columns names are not analysis-friendy (including special character, space, non-alphabet, etc.). There are a few technics that readr package can handle such data to import efficiently. Code 1 is reading csv data by skipping first 2 rows. Code 2 is reading csv data by deleting the comment specified in the argument. Code 3 is reading csv file which does not have column names, so "col_names = FALSE" prevents from reading the first row of data as column names. Code 4 is reading csv file with specifying column names as x,y, and z.
+
+```{r}
+# 1
+read_csv("The first line of metadata
+  The second line of metadata
+  x,y,z
+  1,2,3", skip = 2)
+
+# 2
+read_csv("# a comment want to be deleted
+	 x, y, z
+	 1, 2, 3", comment = "#")
+
+# 3
+read_csv("1,2,3\n4,5,6", col_names = FALSE)
+# 4 
+read_csv("1,2,3\n4,5,6", col_names = c("x","y","z"))
+
+```
+
+### Parsing 
+Parsing is one of the powerful function within readr. When you want to extract numeric part of data, parse will effectivly conduct the job when importing data. 
+```{r}
+parse_number("$100")
+#> [1] 100
+parse_number("20%")
+#> [1] 20
+parse_number("It cost $123.45")
+#> [1] 123
+```
+
+
+## Relational data
+### Key
+When you working on data, you will mostly encounter more than one data to explore your interest. Merging is a traditional function that will merge data with key variable. However, using join function within tidyverse is more poweful and efficent when you work with relational data. It is always important to remember that there are primary keys and foreign keys in datasets which will identify unique obsavation, and start with verifying which one varieble is a key. You can explore whether a certain variable is primary key or not by counting the number of unique observation. Code 1 is attempting to identfy primary key by counting the number of unique observation of suspected variable. You can see that carrier is not primary key of flights dataset as it has many observasions for each value whereas tailnum is a primay key for planes as there is no more than 1 observation with unique tailnum. There is a case when you cannot find primary key even with combination of variables. For instance, in flights dataset, neither combination of year, day, hour, and tailnum, and year, day, hour, and flight are key to identify unique observation (Code 2).
+
+```{r}
+# 1
+flights %>%
+	count(carrier) %>%
+	filter(n > 1)
+
+planes %>%
+	count(tailnum) %>%
+	filter(n > 1)
+
+# 2
+flights %>%
+	count(year, day, hour, tailnum) %>%
+	filter(n > 1)
+
+flights %>%
+	count(year, day, hour, flight) %>%
+	filter(n > 1)
+```
+In the code 2 above, you could not identfy combination of variables as primary key. It seems like both tailnum and flight number are used multiple times within a day. In such cases, it is useful to add new variable with mutate() or row_number(). This is called **surrogate key**.
+
+### Mutating joins
+When you know primary and foreign key of multiple data, you can join the data. Code 1 below is doing mutating join, ie.e adding new variable to the right end of the data by key variable. 
+```{r}
+# 1
+flights2 <- flights %>%
+	select(year:day, hour, origin, dest, tailnum, carrier)
+flights2 %>%
+	select(-origin, -dest) %>%
+	left_join(airlines, by = "carrier")
+#view(flights2)
+
+```
+There are 2 types of joins: inner join and outer join. An inner join keeps observations that appear in both tables. An outer join keeps observations that appear in at least one table. There are 3 types of outer joins:
+* A left join keeps all observations in x.  
+* A right join keeps all observations in y.  
+* A full join keeps all observations in x and y. 
+Your default join should be left join as it will keep original observations even if there is no match.
+
+### Defining the key columns
+There are often cases that key columns that you want to join by between two data are in different name. In such cases, join will be easilly done by specifying each variable name as code 1. 
+```{r}
+flights2 %>% 
+  left_join(airports, c("dest" = "faa"))
+
+```
+
+## Strings
+When data contain any string values, such as residential addresses, stringr package will be the one to manipulate strings. You need to explicitly load stringr besides tidyverse.There are many useful functions in stringr, all starting with "str..". For example, code 1 is combining two strings. There are other functions such as subsetting a part of string, changing a letter from lower to upper, or vice-versa, we will not cover them here.
+
+```{r}
+# 1
+library(stringr)
+str_c("x", "y")
+str_c("x", "y", "z")
+str_c("x", "y", "z", sep = ", ")
+
+```
+### Regular expression
+To learn regular expression, you will use str_view. The following code is the smiplest patterns match. Code 1 is trying to match a part of string "an". Code 2 is trying to match any character next to "a" by using ".".
+```{r}
+library(htmlwidgets)
+x <- c("apple", "banana", "pear")
+# 1
+str_view(x, "an")
+# 2
+str_view(x, ".a.")
+```
+When you want to match "." within a string, you will use escape to tell the regular expression you want to match it exactly. For escaping, you will use "\\" in the statement. When you want to match with "\" in a string, you will have to type "\\\\".
+```{r}
+# To create the regular expression, we need \\
+dot <- "\\."
+
+# But the expression itself only contains one:
+writeLines(dot)
+#> \.
+
+# And this tells R to look for an explicit .
+str_view(c("abc", "a.c", "bef"), "a\\.c")
+
+x <- "a\\b"
+writeLines(x)
+#> a\b
+
+str_view(x, "\\\\")
+```
+Regular expression will match any part of a string by default. It is useful to anchor regular expressions so that it will match a start or end of a string. 
+* "^" to match the start of the string  
+* "$" to match the end of the string  
+It is easier to remember with: if you begin with power (^), you will end up with money ($).
+
+```{r}
+x <- c("apple", "banana", "pear")
+str_view(x, "^a")
+str_view(x, "$a")
+```
+If you want to force  regular expression to match a complete string, you will anchor it with both. 
+
+```{r}
+x <- c("apple pie", "apple", "apple cake")
+str_view(x, "apple")
+str_view(x, "^apple$")
+
+```
+
+There are other useful tools to match more than one character within a string besides ".". 
+
+* \d: matches any digit.  
+* \s: matches any whitespace (e.g. space, tab, newline).  
+* [abc]: matches a, b, or c.  
+* [^abc]: matches anything except a, b, or c.  
+
+[abc] is useful when you want to find a single metacharacter instead of using escape simbol. However, some characters, such as ], /, ^, and - will not be handled with a character class, so you should be careful.
+```{r}
+str_view(c("abc", "a.c", "a*c", "a c"), "a[.]c")
+str_view(c("abc", "a.c", "a*c", "a c"), ".[*]c")
+str_view(c("abc", "a.c", "a*c", "a c"), "a[ ]")
+```
+By using parentheses and |, you can match more than one character within a specified string.
+```{r}
+str_view(c("grey", "gray"), "gr(e|a)y")
+```
+
+## Factors
+### Modifying factor levels and values
+To reorder the level of factors, you will use "fct_reoder". This function is a part of "forcats" package, so you need to load this besides tidyverse. Reodering is useful when you visualize data to make your graph more intuitively readable. In code 1, gglot was executed to visualize the length of mean TV hours by religion. Code 2 made the graph more readable to oder the TV hourse in descending order. 
+```{r}
+library(forcats)
+# 1
+relig_summary <- gss_cat %>%
+  group_by(relig) %>%
+  summarise(
+    age = mean(age, na.rm = TRUE),
+    tvhours = mean(tvhours, na.rm = TRUE),
+    n = n()
+  )
+ggplot(relig_summary, aes(tvhours, relig)) + geom_point()
+
+# 2
+ggplot(relig_summary, aes(tvhours, fct_reorder(relig, tvhours))) +
+  geom_point()
+```
+
+Another type of reordering "fct_reorder2" is useful for line plot. It will order the lines by y values associated with the largest x value.
+
+```{r}
+by_age <- gss_cat %>%
+  filter(!is.na(age)) %>%
+  count(age, marital) %>%
+  group_by(age) %>%
+  mutate(prop = n / sum(n))
+
+ggplot(by_age, aes(age, prop, colour = marital)) +
+  geom_line(na.rm = TRUE)
+
+ggplot(by_age, aes(age, prop, colour = fct_reorder2(marital, age, prop))) +
+  geom_line() +
+  labs(colour = "marital")
+```
+
+Till now we have covered how to reorder the factors. When you want to re-value the content of variable you can use fct_recode. It is also useful when you want to collapse the levels of factor. Code 1 is re-valuing the variable partyid. By specifying the same value, you can collapse the original several values into 1 value. Code 2 is collapsing the original values into 3 levels. It is useful when you have multiple values that you want to collapse.
+
+```{r}
+# 1
+gss_cat %>%
+  mutate(partyid = fct_recode(partyid,
+    "Republican, strong"    = "Strong republican",
+    "Republican, weak"      = "Not str republican",
+    "Independent, near rep" = "Ind,near rep",
+    "Independent, near dem" = "Ind,near dem",
+    "Democrat, weak"        = "Not str democrat",
+    "Democrat, strong"      = "Strong democrat",
+    "Other"                 = "No answer",
+    "Other"                 = "Don't know",
+    "Other"                 = "Other party"
+  )) %>%
+  count(partyid)
+
+# 2
+gss_cat %>%
+  mutate(partyid = fct_collapse(partyid,
+    other = c("No answer", "Don't know", "Other party"),
+    rep = c("Strong republican", "Not str republican"),
+    ind = c("Ind,near rep", "Independent", "Ind,near dem"),
+    dem = c("Not str democrat", "Strong democrat")
+  )) %>%
+  count(partyid)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
