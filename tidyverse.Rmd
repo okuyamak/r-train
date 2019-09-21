@@ -10,7 +10,7 @@ library(tidyverse)
 knitr::opts_chunk$set(echo=TRUE,warning=FALSE,message=FALSE)
 ```
 # tidyverse
-From this book R for Data Science, you will be able to learn how to clean, manage, and visualize data which are all necessary for data science. Along with these basic skills, you will be able to learn how to reproduce research, literate programming and save time, which will be a great asset for you asa researcher. 
+From this book R for Data Science, you will be able to learn how to clean, manage, and visualize data which are all necessary for data science. Along with these basic skills, you will be able to learn how to reproduce research, literate programming and save time, which will be a great asset for you as a researcher. 
 
 ## Introduction
 Everything begin with importing and tidying a data. Tidying data means create data with colums and rows which could be analyzed. Next step will be transforming. Transforming data is basically to subset observations, create new variables, and summarize (ex. means, sum). Data tidying and transforming are called together as data wrangling. 
