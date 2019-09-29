@@ -4,23 +4,23 @@ author: "Kenta Okuyama"
 output: html_document
 ---
 
-```{r,echo=TRUE,warning=FALSE,message=FALSE}
+```{r,echo=FALSE,warning=FALSE,message=FALSE}
 library(knitr)
 library(tidyverse)
 knitr::opts_chunk$set(echo=TRUE,warning=FALSE,message=FALSE)
 ```
 # tidyverse
-From this book R for Data Science, you will be able to learn how to clean, manage, and visualize data which are all necessary for data science. Along with these basic skills, you will be able to learn how to reproduce research, literate programming and save time, which will be a great asset for you as a researcher. 
+From this book **R for Data Science**, you will be able to learn how to clean, manage, and visualize data which are all necessary for data science. Along with these basic skills, you will be able to learn how to reproduce research, literate programming and save time, which will be a great asset for you as a researcher. 
 
 ## Introduction
-Everything begin with importing and tidying a data. Tidying data means create data with colums and rows which could be analyzed. Next step will be transforming. Transforming data is basically to subset observations, create new variables, and summarize (ex. means, sum). Data tidying and transforming are called together as data wrangling. 
+Everything begin with importing and tidying data. Tidying data means creating data with colums and rows which could be analyzed. Next step will be transforming. Transforming data is basically to subset observations, create new variables, and summarize (ex. means, sum) by groups of your interest. Data tidying and transforming are called together as data wrangling. 
 
 ## Data visualization
 ### ggplot
 Here introduce simple ggplot method to efficiently plot data. There is often a situation when you want to plot multiple gemetory within one canvas. You can shorten your code like code 2 instead of literating the same argument like code 1. In addition, you can specify argument for each geometry like code 3 and 4. You can see that it is even possible to show only a part of data by filtering in code 4.
 
 ```{r}
-# 1
+# 1.
 ggplot(mpg) +
 	geom_point(aes(x=displ,y=hwy))+
 	geom_smooth(aes(x=displ,y=hwy))
@@ -36,7 +36,6 @@ ggplot(mpg, aes(x=displ,y=hwy)) +
 ggplot(mpg, aes(x=displ,y=hwy)) +
 	geom_point(aes(color=class))+
 	geom_smooth(data = filter(mpg, class == "subcompact"), se = FALSE)
-
 ```
 
 ## Data transformation
@@ -44,7 +43,7 @@ ggplot(mpg, aes(x=displ,y=hwy)) +
 Once you have data imported, you want to visualize to grasp basic characteristics as well as certain associations of your interest. Data visualization will be easily and effectively done by gglot. However, you need to transform your data to visualize, i.e. create new variables, change type of variables, summarize by group, etc. Here dplyr is a powerful package to transform data in your desired format. 
 
 ### dplyr::filter
-One of the most basic function in dplyr is filter(). It will basically subset dataset for your interest. A confusing part which a first-time user face is how to write conditional statement, i.e. "and", "or", "not". You have to be careful for writing this statement not as same as english language grammar. The code below is filtering data of flights departed in either November or December. Although you might be tempted to write as: nov_dev <- filter(flights, month == 11 | 12, it won't work. You need to write either: month ==11| month==12, or month %in% c(11,12), like code below.
+One of the most basic function in dplyr is filter(). It will basically subset dataset for your interest. A confusing part which a first-time user face is how to write conditional statement, i.e. "and", "or", "not". You have to be careful for writing this statement not as same as english language grammar. The code below is filtering data of flights departed in either November or December. Although you might be tempted to write as: nov_dev <- filter(flights, month == 11 | 12, it won't work. You need to write either: **month ==11| month==12**, or **month %in% c(11,12)**, like code below.
 ```{r}
 library(nycflights13)
 nov_dec <- filter(flights, month %in% c(11, 12))
@@ -193,6 +192,7 @@ ggplot(data = diamonds) +
 ggplot(data = diamonds) +
   geom_histogram(mapping = aes(x = carat), binwidth=0.5)
 ```
+
 Next step is to explore the distribution of varialbes deeper. It is often interesting to see the distribution by groups like code below. Code 1 and 2 are both visualizing the distribution of carat of diamonds by group:cut, but in different way, i.e. bar vs line. As you notice, it would be much easier to see with line when distribution plot is overlapped each other.
 
 ```{r}
@@ -204,6 +204,7 @@ ggplot(data = diamonds, mapping = aes(x = carat, color = cut)) +
   geom_freqpoly()
 
 ```
+
 Why is it important to visualize distribution of single variable? Although most peole neglect the importance of simple histrogram, there is often a situation that you can find interensting feature, ex. clustering. From code 1 and 2 below, you can notice there is a clustering, i.e. there there are multiple points which have high frequency. This often lead you to develop questions, what other variable in the data might explain this clustering (=tendency)?
 
 ```{r}
@@ -223,6 +224,7 @@ ggplot(diamonds) +
   geom_histogram(mapping = aes(x = y), binwidth = 0.5) +
   coord_cartesian(ylim = c(0, 50))
 ```
+
 You always need to make a decision whether you include outliers in the analysis. If outliers do not have significant effect on your results, you can handle them as missing and move on. However, if it has significant effect on your results, you should not drop them without justification. You need to figure out what caused them, i.e. data entry, measurament errors, and explain why and how you remove outliers. 
 
 Besides outliers, there are often missing values. These are usually not visualized in ggplot by default. However, warning/messages might appear. You can hide such messeges by adding "na.rm=TRUE" within ggplot code block.
