@@ -401,7 +401,7 @@ str_view(c("grey", "gray"), "gr(e|a)y")
 
 ## Factors
 ### Modifying factor levels and values
-To reorder the level of factors, you will use "fct_reoder". This function is a part of "forcats" package, so you need to load this besides tidyverse. Reodering is useful when you visualize data to make your graph more intuitively readable. In code 1, gglot was executed to visualize the length of mean TV hours by religion. Code 2 made the graph more readable to oder the TV hourse in descending order. 
+To reorder the level of factors, you will use "fct_reoder". This function is a part of "forcats" package, so you need to load this besides tidyverse. Reodering is useful when you visualize data to make your graph more intuitively readable. In code 1, gglot was executed to visualize the length of mean TV hours by religion. Code 2 made the graph more readable to oder the TV hours in descending order. 
 ```{r}
 library(forcats)
 # 1
@@ -436,7 +436,7 @@ ggplot(by_age, aes(age, prop, colour = fct_reorder2(marital, age, prop))) +
   labs(colour = "marital")
 ```
 
-Till now we have covered how to reorder the factors. When you want to re-value the content of variable you can use fct_recode. It is also useful when you want to collapse the levels of factor. Code 1 is re-valuing the variable partyid. By specifying the same value, you can collapse the original several values into 1 value. Code 2 is collapsing the original values into 3 levels. It is useful when you have multiple values that you want to collapse.
+Till now we have covered how to reorder the factors. When you want to re-value the content of variable, you can use fct_recode. It is also useful when you want to collapse the levels of factor. Code 1 is re-valuing the variable partyid. By specifying the same value, you can collapse the original several values into 1 value. Code 2 is collapsing the original values into 3 levels. It is useful when you have multiple values that you want to collapse. There is a argument set_value_labels, but this is for labelling purposes, so it is different from re-value by fct_recode.
 
 ```{r}
 # 1
@@ -466,10 +466,100 @@ gss_cat %>%
 
 ```
 
+Sometime when you want to lump together the cateories, you can do so by fct_lump(). If you do not specify the number of groups that you want to get from lump, fct_lump will automatcally produce meaningful number of groups depending on the data (Code 1). Most of the case, you want to specify to get desired output (Code 2).
+
+```{r}
+# 1
+gss_cat %>%
+	mutate(relig = fct_lump(relig)) %>%
+	count(relig)
+# 2
+gss_cat %>%
+	mutate(relig = fct_lump(relig, n=10)) %>%
+	count(relig, sort=TRUE) %>%
+	print(n=Inf)
+```
 
 
+## Functions
+Functions are very useful when you repeat a block of codes more than twice. It will reduce the length of your code and at the same time, it will improve the readability of your code siginificantly. The example below is a block of code written by copy and paste. You can spot the mistake in the line of df$b, one variable was forgotten to be changed fro a to be. Such mistake can be prevented if this repetitive code was written and used as a function.
 
+```{r}
+df <- tibble::tibble(
+										 a=rnorm(10),
+										 b=rnorm(10),
+										 c=rnorm(10),
+										 d=rnorm(10)
+										 )
+df$a <- (df$a - min(df$a, na.rm=TRUE)) /
+	(max(df$a, na.rm=TRUE) - min(df$a, na.rm=TRUE))
+df$b <- (df$b - min(df$b, na.rm=TRUE)) /
+	(max(df$b, na.rm=TRUE) - min(df$a, na.rm=TRUE))
+df$c <- (df$c - min(df$c, na.rm=TRUE)) /
+	(max(df$c, na.rm=TRUE) - min(df$c, na.rm=TRUE))
+df$d <- (df$d - min(df$d, na.rm=TRUE)) /
+	(max(df$d, na.rm=TRUE) - min(df$d, na.rm=TRUE))
+```
 
+In order to write a function, you want to see how many inputs does the code have. Since this code has one input df$a, you can replace it with a dummy varaiable x.
+
+```{r}
+x  <- df$a
+(x - min(x, na.rm=TRUE)) /
+	(max(x, na.rm=TRUE) - min(x, na.rm=TRUE))
+```
+
+You can still see that there is some duplication in the code. The range of the data (min, max) three times. It can be summarized as range(). You can see that it became significantly shorter.
+
+```{r}
+rng <- range(x, na.rm=TRUE)
+(x - rng[1]) /
+	(rng[2] - rng[1])
+```
+
+After simplified the code, you can turn it into a function. The naming of a function should be easy to be understood what it is doing. 
+
+```{r}
+rescale01  <- function(x) {
+	rng <- range(x, na.rm=TRUE)
+	(x - rng[1]) /
+	(rng[2] - rng[1])
+}
+# make sure if it works
+rescale01(c(0,5,10))
+```
+
+Once a function is made, you can apply it to data with very short and readable code, and there will be no mistakes. This still could be shorten once iteration is combined.
+
+```{r}
+df$a <- rescale01(df$a)
+df$b <- rescale01(df$b)
+df$c <- rescale01(df$c)
+df$d <- rescale01(df$d)
+```
+
+Conditional execution is often combined in a function. General format of if statement is like this.
+
+```{r}
+if (condition) {
+	# code executed when condition is TRUE
+} else {
+	# code executed when condition is FALSE
+}
+```
+
+The sample ofr function with conditional execution is like this. This function is trying to return a logical vector describing whether or not each element of a vector is named.
+
+```{r}
+has_name <- function(x) {
+	nms <- names(x)
+	if (is.null(nms)) {
+		rep(FALSE, length(x))
+	} else {
+		!is.na(nms) & nms != ""
+	}
+}
+```
 
 
 
